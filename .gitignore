@@ -1,21 +1,92 @@
-# Local environment files
-.env
-.env.*
-*.local
-
-# Terraform state and crash logs
+# ======================
+# Terraform
+# ======================
 .terraform/
 *.tfstate
 *.tfstate.*
+*.tfvars
+*.tfvars.json
 crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraform.lock.hcl
 
-# IDE/editor files
+# ======================
+# Kubernetes
+# ======================
+kubeconfig
+*.kubeconfig
+
+# ======================
+# AWS
+# ======================
+.aws/
+credentials
+config
+
+# ======================
+# Environment variables
+# ======================
+.env
+.env.*
+!.env.example
+
+# ======================
+# NodeJS
+# ======================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ======================
+# Python
+# ======================
+__pycache__/
+*.pyc
+venv/
+.venv/
+
+# ======================
+# Docker
+# ======================
+*.tar
+
+# ======================
+# Helm
+# ======================
+*.tgz
+charts/*.tgz
+
+# ======================
+# IDE
+# ======================
 .vscode/
 .idea/
 
+# ======================
 # OS files
+# ======================
 .DS_Store
 Thumbs.db
 
+# ======================
 # Logs
+# ======================
 *.log
+logs/
+
+# ======================
+# Jenkins
+# ======================
+jenkins_home/
+workspace/
+
+# ======================
+# Temporary files
+# ======================
+*.tmp
+*.bak
+*.swp
