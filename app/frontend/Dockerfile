@@ -1,5 +1,7 @@
-# Placeholder Dockerfile for frontend
-# Replace with the real container build instructions later.
-
-FROM nginx:alpine
-COPY . /usr/share/nginx/html
+FROM node:20-alpine
+WORKDIR /app
+COPY package*.json ./
+RUN npm install
+COPY . .
+EXPOSE 3000
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]

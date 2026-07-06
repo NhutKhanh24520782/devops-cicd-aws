@@ -1,7 +1,7 @@
-# Placeholder Dockerfile for backend
-# Replace with the real container build instructions later.
-
 FROM node:20-alpine
 WORKDIR /app
+COPY package*.json ./
+RUN npm install --omit=dev
 COPY . .
+EXPOSE 5000
 CMD ["npm", "start"]
