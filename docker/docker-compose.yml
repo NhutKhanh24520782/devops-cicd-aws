@@ -1,0 +1,18 @@
+# Docker Compose placeholder
+# Purpose: define local development environment for app services
+
+version: "3.9"
+services:
+  frontend:
+    build:
+      context: ../app/frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+
+  backend:
+    build:
+      context: ../app/backend
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"

@@ -1,0 +1,9 @@
+# Placeholder values for backend chart
+replicaCount: 1
+image:
+  repository: placeholder/backend
+  tag: latest
+  pullPolicy: IfNotPresent
+service:
+  type: ClusterIP
+  port: 80

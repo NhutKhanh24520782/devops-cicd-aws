@@ -1,0 +1,36 @@
+pipeline {
+    agent any
+
+    stages {
+        stage('Build') {
+            steps {
+                echo 'Placeholder: build application'
+            }
+        }
+        stage('Test') {
+            steps {
+                echo 'Placeholder: run tests'
+            }
+        }
+        stage('Docker Build') {
+            steps {
+                echo 'Placeholder: build Docker image'
+            }
+        }
+        stage('Push ECR') {
+            steps {
+                echo 'Placeholder: push image to Amazon ECR'
+            }
+        }
+        stage('Deploy') {
+            steps {
+                echo 'Placeholder: deploy to EKS'
+            }
+        }
+        stage('Rollback') {
+            steps {
+                echo 'Placeholder: rollback deployment if needed'
+            }
+        }
+    }
+}

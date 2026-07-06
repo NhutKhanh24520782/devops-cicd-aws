@@ -1,0 +1,13 @@
+# Placeholder GitHub Actions workflow
+# This can be replaced with Jenkins integration later if preferred.
+name: CI Placeholder
+on:
+  push:
+    branches: [main]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Placeholder step
+        run: echo "Add build and test steps here"

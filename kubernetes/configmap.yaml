@@ -1,0 +1,8 @@
+# Placeholder ConfigMap manifest
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: devops-portfolio
+data:
+  APP_ENV: "dev"

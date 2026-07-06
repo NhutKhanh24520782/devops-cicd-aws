@@ -1,0 +1,7 @@
+# Placeholder Alertmanager configuration
+route:
+  receiver: 'default-receiver'
+receivers:
+  - name: 'default-receiver'
+    webhook_configs:
+      - url: 'http://alert-webhook.example.com'

@@ -1,0 +1,4 @@
+# Placeholder values for mongo chart
+persistence:
+  enabled: true
+  size: 10Gi
