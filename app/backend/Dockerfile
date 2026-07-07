@@ -1,52 +1,12 @@
-# FROM node:20-alpine
-# WORKDIR /app
-# COPY package*.json ./
-# RUN npm install --omit=dev
-# COPY . .
-# EXPOSE 5000
-# CMD ["npm", "start"]
-
-
-# FROM node:20-alpine
-
-# WORKDIR /app
-
-# ENV NODE_ENV=production
-
-# COPY package*.json ./
-
-# RUN npm ci --omit=dev
-
-# COPY . .
-
-# EXPOSE 5000
-
-# USER node
-
-# CMD ["npm", "start"]
-
-FROM node:20-alpine AS builder
-
+FROM node:20-alpine
+ENV NODE_ENV=production
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm ci
+RUN npm ci --omit=dev --no-audit --no-fund && npm cache clean --force
 
 COPY . .
 
-RUN npm run build
+EXPOSE 8080
+CMD ["node", "server.js"]
 
-FROM node:20-alpine
-
-WORKDIR /app
-
-COPY package*.json ./
-RUN npm ci --omit=dev
-
-COPY --from=builder /app/dist ./dist
-
-EXPOSE 5000
-
-USER node
-
-CMD ["node", "dist/main.js"]
