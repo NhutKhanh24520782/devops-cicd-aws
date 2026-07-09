@@ -1,0 +1,51 @@
+variable "region" {
+  type = string
+}
+
+variable "availability_zones" {
+  type = list(string)
+}
+
+variable "cidr_block" {
+  type = string
+}
+
+variable "public_subnets" {
+  type = list(string)
+}
+
+variable "private_subnets" {
+  type = list(string)
+}
+
+variable "endpoint_subnets" {
+  type = list(string)
+}
+
+variable "cluster_name" {
+  type = string
+}
+
+variable "workstation_ip" {
+  type = string
+}
+
+variable "bastion_instance_type" {
+  type = string
+}
+
+variable "bastion_ami" {
+  type = string
+}
+
+variable "keypair_path" {
+  type = string
+}
+
+variable "project_name" {
+  type = string
+}
+
+variable "environment" {
+  type = string
+}
