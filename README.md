@@ -4,6 +4,28 @@
 This repository provides a production-style project skeleton for a personal DevOps portfolio focused on Jenkins, AWS, Docker, Kubernetes, Terraform, and monitoring.
 
 It is intentionally designed as a learning and showcase project for internship or junior DevOps roles.
+# Infrastructure Architecture
+
+# Networking
+
+![Services](diagrams/devops-networking.drawio.png)
+
+---
+# Services & Resources
+
+![Services](diagrams/devops-Service.drawio.png)
+
+---
+
+# Security Architecture
+
+![Security](diagrams/devops-security-group.drawio.png)
+
+---
+
+# CI/CD Pipeline
+
+![CI/CD](diagrams/devops-cicd.drawio.png)
 
 ## Architecture Diagram
 ```mermaid
