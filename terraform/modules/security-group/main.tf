@@ -88,7 +88,15 @@ resource "aws_security_group" "worker_node" {
     protocol = "-1"
     self = true
   }
-
+  # ingress {
+#   description = "Kubernetes API from Jenkins"
+#   from_port   = 443
+#   to_port     = 443
+#   protocol    = "tcp"
+#   security_groups = [
+#     aws_security_group.jenkins.id
+#   ]
+# }
   egress {
     description = "Allow all outbound traffic"
     from_port   = 0
@@ -127,3 +135,50 @@ resource "aws_security_group" "endpoint" {
     Name = "endpoint-sg"
   }
 }
+
+#################################################
+# Jenkins Security Group
+# (Comment because Jenkins EC2 is created manually)
+#################################################
+
+# resource "aws_security_group" "jenkins" {
+#   name        = "jenkins-sg"
+#   description = "Security Group for Jenkins EC2"
+#   vpc_id      = var.vpc_id
+#   
+#   # SSH from workstation
+
+#   ingress {
+#     description = "SSH from Workstation"
+#     from_port   = 22
+#     to_port     = 22
+#     protocol    = "tcp"
+#     cidr_blocks = [var.workstation_ip]
+#   }
+#   
+#   # Jenkins Web UI
+#   
+#   ingress {
+#     description = "Jenkins UI"
+#     from_port   = 8080
+#     to_port     = 8080
+#     protocol    = "tcp"
+#     cidr_blocks = [var.workstation_ip]
+#   }
+#   
+#   # Allow all outbound
+#   
+#   egress {
+#     description = "Allow all outbound traffic"
+#     from_port   = 0
+#     to_port     = 0
+#     protocol    = "-1"
+#     cidr_blocks = ["0.0.0.0/0"]
+#   }
+#   tags = {
+#     Name        = "jenkins-sg"
+#     Project     = var.project_name
+#     Environment = var.environment
+#     Terraform   = "true"
+#   }
+# }
