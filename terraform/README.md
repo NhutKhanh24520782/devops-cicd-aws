@@ -17,3 +17,9 @@ Planned modules:
 Environments:
 - dev
 - prod
+
+Note:
+The Jenkins EC2 instance and its Security Group are provisioned manually
+for this project. The Terraform resources below are intentionally commented
+out to demonstrate how Jenkins could be managed as Infrastructure as Code
+in a production environment.
