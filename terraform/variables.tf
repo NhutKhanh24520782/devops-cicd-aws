@@ -1,9 +1,21 @@
+variable "project_name" {
+  type = string
+}
+
+variable "environment" {
+  type = string
+}
+
 variable "region" {
   type = string
 }
 
 variable "availability_zones" {
   type = list(string)
+}
+
+variable "cluster_name" {
+  type = string
 }
 
 variable "cidr_block" {
@@ -18,15 +30,15 @@ variable "private_subnets" {
   type = list(string)
 }
 
-variable "endpoint_subnets" {
+variable "intra_subnets" {
   type = list(string)
 }
 
-variable "cluster_name" {
+variable "workstation_ip" {
   type = string
 }
 
-variable "workstation_ip" {
+variable "kubernetes_version" {
   type = string
 }
 
@@ -38,14 +50,6 @@ variable "bastion_ami" {
   type = string
 }
 
-variable "keypair_path" {
-  type = string
-}
-
-variable "project_name" {
-  type = string
-}
-
-variable "environment" {
+variable "key_name" {
   type = string
 }
