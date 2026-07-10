@@ -121,7 +121,7 @@ resource "aws_security_group" "endpoint" {
     from_port       = 443
     to_port         = 443
     protocol        = "tcp"
-    security_groups = [aws_security_group.worker_node.id]
+    cidr_blocks = ["10.0.0.0/16"] 
   }
 
   egress {
