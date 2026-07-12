@@ -40,7 +40,7 @@ module "eks" {
       before_compute = true
     }
 
-    # aws-ebs-csi-driver = {}
+    aws-ebs-csi-driver = {}
   }
 
   eks_managed_node_groups = {
