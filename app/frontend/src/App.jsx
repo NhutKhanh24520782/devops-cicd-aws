@@ -41,7 +41,12 @@ function App() {
 
   return (
     <div className="app">
-      <h1>DevOps Portfolio Demo</h1>
+     <h1>🚀 DevOps Portfolio</h1>
+      <p>Environment: Development</p>
+      <p>CI/CD: Jenkins + GitHub Webhook</p>
+      <p>Container: Docker</p>
+      <p>Orchestration: Amazon EKS</p>
+      <p>Status: ✅ Backend Connected</p>
       <p>{status}</p>
       <form onSubmit={createItem}>
         <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Item name" required />
