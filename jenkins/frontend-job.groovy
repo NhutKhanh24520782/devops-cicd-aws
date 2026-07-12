@@ -18,7 +18,7 @@ pipeline {
 
         stage('Checkout') {
             steps {
-                git branch: 'main',
+                git branch: 'dev',
                 url: 'https://github.com/NhutKhanh24520782/devops-cicd-aws.git'
             }
         }
@@ -27,7 +27,7 @@ pipeline {
 
             steps {
 
-                dir('backend') {
+                dir('app/frontend') {
 
                     sh """
                     docker build -t ${ECR_REPO}:${IMAGE_TAG} .
