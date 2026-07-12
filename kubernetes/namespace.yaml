@@ -1,5 +1,4 @@
-# Placeholder Namespace manifest
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: devops-portfolio
+  name: devops-project

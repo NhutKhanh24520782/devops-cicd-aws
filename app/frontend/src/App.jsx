@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const apiBase = import.meta.env.VITE_API_URL || "";
 
 function App() {
   const [items, setItems] = useState([]);
