@@ -26,3 +26,8 @@ output "ebs_csi_role_arn" {
   description = "IAM Role ARN for EBS CSI Driver (passed to addon service_account_role_arn)"
   value       = aws_iam_role.ebs_csi.arn
 }
+
+output "lbc_role_arn" {
+  description = "IAM Role ARN for AWS Load Balancer Controller (passed to Helm release)"
+  value       = aws_iam_role.lbc.arn
+}
