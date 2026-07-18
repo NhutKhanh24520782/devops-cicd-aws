@@ -1,13 +1,3 @@
-terraform {
-  required_version = ">= 1.4.0"
-
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = ">= 5.0.0"
-    }
-  }
-}
 #tfsec:ignore:aws-ec2-enforce-http-token-imds
 resource "aws_instance" "bastion" {
   ami                         = var.ami

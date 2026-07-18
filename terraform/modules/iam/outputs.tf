@@ -21,3 +21,8 @@ output "jenkins_instance_profile" {
   value = aws_iam_instance_profile.jenkins.name
 
 }
+
+output "ebs_csi_role_arn" {
+  description = "IAM Role ARN for EBS CSI Driver (passed to addon service_account_role_arn)"
+  value       = aws_iam_role.ebs_csi.arn
+}

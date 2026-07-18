@@ -18,6 +18,10 @@ output "oidc_provider_arn" {
   value = module.eks.oidc_provider_arn
 }
 
+output "oidc_provider" {
+  value = module.eks.oidc_provider
+}
+
 output "node_group_arn" {
   value = module.eks.eks_managed_node_groups["default"].node_group_arn
 }

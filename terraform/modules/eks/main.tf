@@ -1,14 +1,3 @@
-terraform {
-  required_version = ">= 1.4.0"
-
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = ">= 5.0.0"
-    }
-  }
-}
-
 module "eks" {
   source  = "terraform-aws-modules/eks/aws"
   version = "~> 21.0"
@@ -40,7 +29,8 @@ module "eks" {
       before_compute = true
     }
 
-    aws-ebs-csi-driver = {}
+    # aws-ebs-csi-driver is managed as a standalone aws_eks_addon resource
+    # in root main.tf to avoid circular dependency with the IAM IRSA role.
   }
 
   eks_managed_node_groups = {

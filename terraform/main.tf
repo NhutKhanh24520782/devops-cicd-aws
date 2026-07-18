@@ -27,6 +27,13 @@ module "iam" {
   project_name = var.project_name
   environment  = var.environment
 
+  # OIDC provider created by EKS — required for EBS CSI IRSA trust policy
+  oidc_provider_arn = module.eks.oidc_provider_arn
+  oidc_provider     = module.eks.oidc_provider
+
+  # IAM depends on EKS OIDC being available first
+  depends_on = [module.eks]
+
 }
 module "endpoint" {
   source = "./modules/endpoint"
@@ -69,9 +76,20 @@ module "ecr" {
   project_name = var.project_name
   environment  = var.environment
 }
-module "s3" {
-  source = "./modules/s3"
 
-  project_name = var.project_name
-  environment  = var.environment
+###############################################################################
+# EBS CSI Driver Addon — managed separately to break the circular dependency:
+#   module.eks  → outputs oidc_provider_arn
+#   module.iam  → creates ebs_csi role using oidc_provider_arn (depends_on eks)
+#   aws_eks_addon → installs addon with role ARN (depends on both)
+###############################################################################
+resource "aws_eks_addon" "ebs_csi" {
+  cluster_name             = module.eks.cluster_name
+  addon_name               = "aws-ebs-csi-driver"
+  service_account_role_arn = module.iam.ebs_csi_role_arn
+
+  depends_on = [
+    module.eks,
+    module.iam,
+  ]
 }

@@ -1,13 +1,3 @@
-terraform {
-  required_version = ">= 1.4.0"
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = ">= 5.0.0"
-    }
-  }
-}
-
 resource "aws_security_group" "bastion" {
   name        = "bastion-sg"
   description = "Security Group for Bastion Host"
@@ -117,11 +107,11 @@ resource "aws_security_group" "endpoint" {
   vpc_id      = var.vpc_id
 
   ingress {
-    description     = "HTTPS from Worker Nodes"
-    from_port       = 443
-    to_port         = 443
-    protocol        = "tcp"
-    cidr_blocks = ["10.0.0.0/16"] 
+    description = "HTTPS from Worker Nodes"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["10.0.0.0/16"]
   }
 
   egress {
