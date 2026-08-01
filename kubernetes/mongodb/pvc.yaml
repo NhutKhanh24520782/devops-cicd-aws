@@ -1,0 +1,17 @@
+# PersistentVolumeClaim for MongoDB data storage.
+# storageClassName: gp3 — EBS CSI Driver provisioner.
+# MongoDB deployment uses strategy: Recreate to avoid PVC mount conflicts
+# (ReadWriteOnce can only be mounted by one node at a time).
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mongodb-pvc
+  namespace: devops-project
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: gp3
+  resources:
+    requests:
+      storage: 5Gi

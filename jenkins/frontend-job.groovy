@@ -10,7 +10,9 @@ pipeline {
 
         ACCOUNT_ID = "274118253913"
 
-        IMAGE_TAG = "${BUILD_NUMBER}"
+        // Git SHA (7 chars) — deterministic, traceable, survives Jenkins reinstall.
+        // Example tag: abc1234
+        IMAGE_TAG = sh(script: 'git rev-parse --short=7 HEAD', returnStdout: true).trim()
 
     }
 
@@ -84,6 +86,16 @@ pipeline {
                 -n devops-project
 
                 """
+
+            }
+
+        }
+
+        stage('Verify') {
+
+            steps {
+
+                sh "kubectl rollout status deployment/frontend -n devops-project --timeout=120s"
 
             }
 

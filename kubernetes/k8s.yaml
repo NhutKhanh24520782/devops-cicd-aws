@@ -1,33 +1,74 @@
+## ─────────────────────────────────────────────────────────────────────────────
+## k8s.yaml — All-in-one manifest for Namespace + MongoDB + Backend + Frontend
+##
+## Fixes applied vs original:
+##   #2  MongoDB: replaced emptyDir with PVC reference
+##   #6  Backend + Frontend: added readinessProbe and livenessProbe
+##   #7  MongoDB: added readinessProbe (TCP socket) to eliminate race condition
+##   #8  All containers: added resource requests and limits
+##   #9  Backend MONGO_URI: aligned to devopsdb to match all other envs
+##   #12 imagePullPolicy: kept as Always (CI/CD uses :latest) — mitigated by probes
+##   #13 Backend + Frontend: explicit rollingUpdate strategy with maxUnavailable: 0
+## ─────────────────────────────────────────────────────────────────────────────
+
+# ── NAMESPACE ────────────────────────────────────────────────────────────────
 apiVersion: v1
 kind: Namespace
 metadata:
   name: devops-project
----
-# apiVersion: v1
-# kind: PersistentVolumeClaim
-# metadata:
-#   name: mongodb-pvc
-#   namespace: devops-project
-# spec:
-#   accessModes:
-#     - ReadWriteOnce
-#   resources:
-#     requests:
-#       storage: 5Gi
 
 ---
+# ── SERVICE ACCOUNTS ─────────────────────────────────────────────────────────
+# Dedicated ServiceAccount per workload (least privilege).
+# automountServiceAccountToken: false — these pods don't call the Kubernetes
+# API, so the SA token is unnecessary and reduces attack surface.
+# To enable IRSA (AWS API access), add annotation:
+#   eks.amazonaws.com/role-arn: arn:aws:iam::<ACCOUNT>:role/<ROLE_NAME>
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: mongodb-sa
+  namespace: devops-project
+automountServiceAccountToken: false
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: backend-sa
+  namespace: devops-project
+automountServiceAccountToken: false
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: frontend-sa
+  namespace: devops-project
+automountServiceAccountToken: false
+
+---
+# ── MONGODB DEPLOYMENT ───────────────────────────────────────────────────────
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: mongodb
   namespace: devops-project
+  labels:
+    app: mongodb
 
 spec:
   replicas: 1
+  revisionHistoryLimit: 3
 
   selector:
     matchLabels:
       app: mongodb
+
+  # MongoDB is a stateful workload — Recreate avoids two Mongo instances
+  # fighting over the same PVC (ReadWriteOnce can only be mounted by one node)
+  strategy:
+    type: Recreate
 
   template:
     metadata:
@@ -35,16 +76,53 @@ spec:
         app: mongodb
 
     spec:
+      serviceAccountName: mongodb-sa
+
       containers:
       - name: mongodb
         image: mongo:7
+        imagePullPolicy: IfNotPresent
 
         ports:
         - containerPort: 27017
 
         env:
         - name: MONGO_INITDB_DATABASE
-          value: devops
+          value: devopsdb
+
+        # startupProbe: gives MongoDB up to 2 min (24 × 5s) to initialise
+        # before liveness kicks in — prevents restart loops on cold start / journal replay
+        startupProbe:
+          tcpSocket:
+            port: 27017
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          failureThreshold: 24
+
+        # FIX #7 — readiness probe prevents backend from connecting before
+        # MongoDB is actually accepting TCP connections (eliminates ECONNREFUSED)
+        readinessProbe:
+          tcpSocket:
+            port: 27017
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          failureThreshold: 6
+
+        livenessProbe:
+          tcpSocket:
+            port: 27017
+          initialDelaySeconds: 30
+          periodSeconds: 20
+          failureThreshold: 3
+
+        # FIX #8 — resource limits prevent OOM on the node
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "256Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
 
         volumeMounts:
         - name: mongodb-storage
@@ -52,33 +130,55 @@ spec:
 
       volumes:
       - name: mongodb-storage
-        emptyDir: {}
+        # FIX #2 — persistent storage; replaced emptyDir with PVC
+        persistentVolumeClaim:
+          claimName: mongodb-pvc
 
 ---
+# ── MONGODB SERVICE ──────────────────────────────────────────────────────────
 apiVersion: v1
 kind: Service
 metadata:
   name: mongodb
   namespace: devops-project
+  labels:
+    app: mongodb
 spec:
   selector:
     app: mongodb
   ports:
   - port: 27017
     targetPort: 27017
+    protocol: TCP
   type: ClusterIP
 
 ---
+# ── BACKEND DEPLOYMENT ───────────────────────────────────────────────────────
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: backend
   namespace: devops-project
+  labels:
+    app: backend
+
 spec:
   replicas: 2
+  revisionHistoryLimit: 3
+
   selector:
     matchLabels:
       app: backend
+
+  # FIX #13 — explicit rolling update: never take a pod down before a new one is ready
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+
+  # FIX #13 — require new pods to be stable for 10 s before continuing rollout
+  minReadySeconds: 10
 
   template:
     metadata:
@@ -86,50 +186,154 @@ spec:
         app: backend
 
     spec:
+      serviceAccountName: backend-sa
+
+      # Wait up to 60 s for the pod to become ready before marking it failed
+      # (gives MongoDB time to become ready before backend probe times out)
+      terminationGracePeriodSeconds: 30
+
+      # Prefer different nodes for the 2 backend replicas.
+      # With 2 t3.small nodes, this ensures a node failure only takes down 1 pod.
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app: backend
+              topologyKey: kubernetes.io/hostname
+
+      # FIX #7 (supplementary) — initContainer ensures MongoDB DNS resolves
+      # and TCP port is open before the backend container starts
+      initContainers:
+      - name: wait-for-mongodb
+        image: busybox:1.36
+        imagePullPolicy: IfNotPresent
+        command:
+        - sh
+        - -c
+        - |
+          echo "Waiting for MongoDB...";
+          until nc -z mongodb 27017; do
+            echo "MongoDB not ready, sleeping 2s";
+            sleep 2;
+          done;
+          echo "MongoDB is ready.";
+        resources:
+          requests:
+            cpu: "10m"
+            memory: "16Mi"
+          limits:
+            cpu: "50m"
+            memory: "32Mi"
+
       containers:
       - name: backend
-
+        # Image tag is :latest here as a deploy-time placeholder.
+        # Jenkins CI/CD overrides this via: kubectl set image deployment/backend
+        #   backend=274118253913.dkr.ecr.ap-southeast-1.amazonaws.com/devops-project-dev-backend:<BUILD_TAG>
+        # where BUILD_TAG = git commit SHA (short) set in jenkins/backend-job.groovy.
         image: 274118253913.dkr.ecr.ap-southeast-1.amazonaws.com/devops-project-dev-backend:latest
-
         imagePullPolicy: Always
 
         ports:
         - containerPort: 8080
+          name: http
 
         env:
         - name: MONGO_URI
-          value: mongodb://mongodb:27017/devops
+          valueFrom:
+            secretKeyRef:
+              name: devops-secret
+              key: MONGO_URI
+
+        - name: PORT
+          value: "8080"
+
+        # startupProbe: gives Express up to 60s (20 × 3s) to boot before
+        # liveness activates — handles slow cold starts on t3.small
+        startupProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          failureThreshold: 20
+          periodSeconds: 3
+
+        # FIX #6 — readiness probe: pod is only added to ALB target group
+        # after Express is listening AND returns 200 on /health
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 0
+          periodSeconds: 10
+          failureThreshold: 3
+          successThreshold: 1
+
+        # FIX #6 — liveness probe: restart pod if /health stops returning 200
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 20
+          failureThreshold: 3
+
+        # FIX #8 — resource limits; also required for HPA to compute CPU utilization
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "500m"
+            memory: "256Mi"
 
 ---
+# ── BACKEND SERVICE ──────────────────────────────────────────────────────────
 apiVersion: v1
 kind: Service
 metadata:
   name: backend
   namespace: devops-project
-
+  labels:
+    app: backend
 spec:
   selector:
     app: backend
-
   ports:
   - port: 8080
     targetPort: 8080
-
+    protocol: TCP
+    name: http
   type: ClusterIP
 
 ---
+# ── FRONTEND DEPLOYMENT ──────────────────────────────────────────────────────
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: frontend
   namespace: devops-project
+  labels:
+    app: frontend
 
 spec:
   replicas: 2
+  revisionHistoryLimit: 3
 
   selector:
     matchLabels:
       app: frontend
+
+  # FIX #13 — rolling update with zero downtime
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+
+  minReadySeconds: 10
 
   template:
     metadata:
@@ -137,28 +341,76 @@ spec:
         app: frontend
 
     spec:
+      serviceAccountName: frontend-sa
+      terminationGracePeriodSeconds: 30
+
+      # Prefer different nodes for the 2 frontend replicas.
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app: frontend
+              topologyKey: kubernetes.io/hostname
+
       containers:
       - name: frontend
-
+        # Image tag is :latest here as a deploy-time placeholder.
+        # Jenkins CI/CD overrides this via: kubectl set image deployment/frontend
+        #   frontend=274118253913.dkr.ecr.ap-southeast-1.amazonaws.com/devops-project-dev-frontend:<BUILD_TAG>
         image: 274118253913.dkr.ecr.ap-southeast-1.amazonaws.com/devops-project-dev-frontend:latest
         imagePullPolicy: Always
 
         ports:
         - containerPort: 80
+          name: http
+
+        # FIX #6 — readiness probe: pod only receives ALB traffic after
+        # Nginx is serving (returns 200 on /)
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          failureThreshold: 3
+          successThreshold: 1
+
+        # FIX #6 — liveness probe: restart if Nginx stops responding
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 15
+          periodSeconds: 20
+          failureThreshold: 3
+
+        # FIX #8 — resource limits
+        resources:
+          requests:
+            cpu: "50m"
+            memory: "64Mi"
+          limits:
+            cpu: "200m"
+            memory: "128Mi"
 
 ---
+# ── FRONTEND SERVICE ─────────────────────────────────────────────────────────
 apiVersion: v1
 kind: Service
 metadata:
   name: frontend
   namespace: devops-project
-
+  labels:
+    app: frontend
 spec:
   selector:
     app: frontend
-
   ports:
   - port: 80
     targetPort: 80
-
+    protocol: TCP
+    name: http
   type: ClusterIP

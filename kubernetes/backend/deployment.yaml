@@ -1,0 +1,142 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: backend-sa
+  namespace: devops-project
+automountServiceAccountToken: false
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: devops-project
+  labels:
+    app: backend
+
+spec:
+  replicas: 2
+  revisionHistoryLimit: 3
+
+  selector:
+    matchLabels:
+      app: backend
+
+  # explicit rolling update: never take a pod down before a new one is ready
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+
+  # require new pods to be stable for 10 s before continuing rollout
+  minReadySeconds: 10
+
+  template:
+    metadata:
+      labels:
+        app: backend
+
+    spec:
+      serviceAccountName: backend-sa
+
+      # Wait up to 60 s for the pod to become ready before marking it failed
+      # (gives MongoDB time to become ready before backend probe times out)
+      terminationGracePeriodSeconds: 30
+
+      # Prefer different nodes for the 2 backend replicas.
+      # With 2 t3.small nodes, this ensures a node failure only takes down 1 pod.
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app: backend
+              topologyKey: kubernetes.io/hostname
+
+      # initContainer ensures MongoDB DNS resolves
+      # and TCP port is open before the backend container starts
+      initContainers:
+      - name: wait-for-mongodb
+        image: busybox:1.36
+        imagePullPolicy: IfNotPresent
+        command:
+        - sh
+        - -c
+        - |
+          echo "Waiting for MongoDB...";
+          until nc -z mongodb 27017; do
+            echo "MongoDB not ready, sleeping 2s";
+            sleep 2;
+          done;
+          echo "MongoDB is ready.";
+        resources:
+          requests:
+            cpu: "10m"
+            memory: "16Mi"
+          limits:
+            cpu: "50m"
+            memory: "32Mi"
+
+      containers:
+      - name: backend
+        # Image tag is :latest here as a deploy-time placeholder.
+        # Jenkins CI/CD overrides this via: kubectl set image deployment/backend
+        #   backend=274118253913.dkr.ecr.ap-southeast-1.amazonaws.com/devops-project-dev-backend:<BUILD_TAG>
+        # where BUILD_TAG = git commit SHA (short) set in jenkins/backend-job.groovy.
+        image: 274118253913.dkr.ecr.ap-southeast-1.amazonaws.com/devops-project-dev-backend:latest
+        imagePullPolicy: Always
+
+        ports:
+        - containerPort: 8080
+          name: http
+
+        env:
+        - name: MONGO_URI
+          valueFrom:
+            secretKeyRef:
+              name: devops-secret
+              key: MONGO_URI
+
+        - name: PORT
+          value: "8080"
+
+        # startupProbe: gives Express up to 60s (20 × 3s) to boot before
+        # liveness activates — handles slow cold starts on t3.small
+        startupProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          failureThreshold: 20
+          periodSeconds: 3
+
+        # readiness probe: pod is only added to ALB target group
+        # after Express is listening AND returns 200 on /health
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 0
+          periodSeconds: 10
+          failureThreshold: 3
+          successThreshold: 1
+
+        # liveness probe: restart pod if /health stops returning 200
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 20
+          failureThreshold: 3
+
+        # resource limits; also required for HPA to compute CPU utilization
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "500m"
+            memory: "256Mi"
